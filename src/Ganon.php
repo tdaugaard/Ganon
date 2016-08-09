@@ -7,8 +7,47 @@
  * @package Ganon
  * @link http://code.google.com/p/ganon/
  * @license http://dev.perl.org/licenses/artistic.html Artistic License
- * @version 1.1
  */
+
+//START ganon.php
+function str_get_dom($str, $return_root = true) {
+	$a = new HTML_Parser_HTML5($str);
+	return (($return_root) ? $a->root : $a);
+}
+function file_get_dom($file, $return_root = true, $use_include_path = false, $context = null) {
+	if (version_compare(PHP_VERSION, '5.0.0', '>='))
+		$f = file_get_contents($file, $use_include_path, $context);
+	else {
+		if ($context !== null)
+			trigger_error('Context parameter not supported in this PHP version');
+		$f = file_get_contents($file, $use_include_path);
+	}
+	return (($f === false) ? false : str_get_dom($f, $return_root));
+}
+function dom_format(&$root, $options = array()) {
+	$formatter = new HTML_Formatter($options);
+	return $formatter->format($root);
+}
+if (version_compare(PHP_VERSION, '5.0.0', '<')) {
+	function str_split($string) {
+		$res = array();
+		$size = strlen($string);
+		for ($i = 0; $i < $size; $i++) {
+			$res[] = $string[$i];
+		}
+		return $res;
+	}
+}
+if (version_compare(PHP_VERSION, '5.2.0', '<')) {
+	function array_fill_keys($keys, $value) {
+		$res = array();
+		foreach($keys as $k) {
+			$res[$k] = $value;
+		}
+		return $res;
+	}
+}
+//END ganon.php
 
 //START gan_tokenizer.php
 class Tokenizer_Base {
@@ -779,6 +818,57 @@ class HTML_Parser_HTML5 extends HTML_Parser {
 }
 //END gan_parser_html.php
 
+
+class HTML_Selector_Result extends ArrayIterator {
+	function __get($attribute) {
+        $result = [];
+        foreach ($this as $node) {
+            $result[] = $this->getAttribute($attribute);
+        }
+
+        return $result;
+	}
+
+	function __set($attribute, $value) {
+        foreach ($this as $node) {
+            $node->setAttribute($attribute, $value);
+        }
+
+        return $this;
+	}
+
+	function __unset($attribute) {
+        foreach ($this as $node) {
+            $node->deleteAttribute($attribute);
+        }
+
+        return $this;
+	}
+
+    public function slice($offset, $length = NULL) {
+        return new HTML_Selector_Result(array_slice($this->getArrayCopy(), $offset, $length));
+    }
+
+    public function __call($name, $args) {
+        $result = "";
+
+        foreach ($this as $node) {
+            if (is_object($node) && method_exists($node, $name)) {
+                $ret = call_user_func_array([$node, $name], $args);
+                if (is_string($ret)) {
+                    $result .= $ret;
+                }
+            }
+        }
+
+        if (!empty($result)) {
+            return $result;
+        }
+
+        return $this;
+    }
+}
+
 //START gan_node_html.php
 class HTML_Node {
 	const NODE_ELEMENT = 0;
@@ -875,8 +965,10 @@ class HTML_Node {
 	 }
 	protected function toString_attributes() {
 		$s = '';
-		foreach($this->attributes as $a => $v) {
-			$s .= ' '.$a.(((!$this->attribute_shorttag) || ($this->attributes[$a] !== $a)) ? '="'.htmlspecialchars($this->attributes[$a], ENT_QUOTES, '', false).'"' : '');
+		if (!is_null($this->attributes)) {
+			foreach($this->attributes as $a => $v) {
+				$s .= ' '.$a.(((!$this->attribute_shorttag) || ($this->attributes[$a] !== $a)) ? '="'.htmlspecialchars($this->attributes[$a], ENT_QUOTES, '', false).'"' : '');
+			}
 		}
 		return $s;
 	}
@@ -944,7 +1036,7 @@ class HTML_Node {
 		return (($parser && $parser->errors) ? $parser->errors : true);
 	}
 	function getPlainText() {
-		return preg_replace('`\s+`', ' ', html_entity_decode($this->toString(true, true, true), ENT_QUOTES));
+		return $this->toString(true, true, true);
 	}
 	function getPlainTextUTF8() {
 		$txt = $this->getPlainText();
@@ -1435,16 +1527,20 @@ class HTML_Node {
 	function addAttribute($attr, $val) {
 		$this->setAttribute($attr, $val, 'total', true);
 	}
-	function deleteAttribute($attr, $compare = 'total', $case_sensitive = false) {
-		$f = $this->findAttribute($attr, $compare, $case_sensitive);
-		if (is_array($f) && $f) {
-			foreach($f as $a) {
-				unset($this->attributes[$a[2]]);
-				if ($this->attributes_ns !== null) {
-					unset($this->attributes_ns[$a[1]]);
-				}
-			}
-		}
+	function deleteAttribute($attrs, $compare = 'total', $case_sensitive = false) {
+        $attrs = array_filter(explode(" ", $attrs));
+
+        foreach ($attrs as $attr) {
+            $f = $this->findAttribute($attr, $compare, $case_sensitive);
+            if (is_array($f) && $f) {
+                foreach($f as $a) {
+                    unset($this->attributes[$a[2]]);
+                    if ($this->attributes_ns !== null) {
+                        unset($this->attributes_ns[$a[1]]);
+                    }
+                }
+            }
+        }
 	}
 	function hasClass($className) {
 		return ($className && preg_match('`\b'.preg_quote($className).'\b`si', $class = $this->class));
@@ -1460,6 +1556,8 @@ class HTML_Node {
 			}
 		}
 		 $this->class = $class;
+
+         return $this;
 	}
 	function removeClass($className) {
 		if (!is_array($className)) {
@@ -1467,13 +1565,14 @@ class HTML_Node {
 		}
 		$class = $this->class;
 		foreach ($className as $c) {
-			$class = reg_replace('`\b'.preg_quote($c).'\b`si', '', $class);
+			$class = preg_replace('`\b'.preg_quote($c).'\b`si', '', $class);
 		}
 		if ($class) {
 			$this->class = $class;
 		} else {
 			unset($this->class);
 		}
+         return $this;
 	}
 	function getChildrenByCallback($callback, $recursive = true, $check_self = false) {
 		$count = $this->childCount();
@@ -1762,7 +1861,9 @@ class HTML_Node {
 				$index += count($res);
 			}
 			return ($index < count($res)) ? $res[$index] : null;
-		} else {
+		} elseif (is_array($res)) {
+            return new HTML_Selector_Result($res);
+        } else {
 			return $res;
 		}
 	}
@@ -2834,45 +2935,3 @@ class HTML_Formatter {
 	}
 }
 //END gan_formatter.php
-
-//START ganon.php
-function str_get_dom($str, $return_root = true) {
-	$a = new HTML_Parser_HTML5($str);
-	return (($return_root) ? $a->root : $a);
-}
-function file_get_dom($file, $return_root = true, $use_include_path = false, $context = null) {
-	if (version_compare(PHP_VERSION, '5.0.0', '>='))
-		$f = file_get_contents($file, $use_include_path, $context);
-	else {
-		if ($context !== null)
-			trigger_error('Context parameter not supported in this PHP version');
-		$f = file_get_contents($file, $use_include_path);
-	}
-	return (($f === false) ? false : str_get_dom($f, $return_root));
-}
-function dom_format(&$root, $options = array()) {
-	$formatter = new HTML_Formatter($options);
-	return $formatter->format($root);
-}
-if (version_compare(PHP_VERSION, '5.0.0', '<')) {
-	function str_split($string) {
-		$res = array();
-		$size = strlen($string);
-		for ($i = 0; $i < $size; $i++) {
-			$res[] = $string[$i];
-		}
-		return $res;
-	}
-}
-if (version_compare(PHP_VERSION, '5.2.0', '<')) {
-	function array_fill_keys($keys, $value) {
-		$res = array();
-		foreach($keys as $k) {
-			$res[$k] = $value;
-		}
-		return $res;
-	}
-}
-//END ganon.php
-
-?>
