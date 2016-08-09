@@ -836,18 +836,33 @@ class HTML_Selector_Result extends ArrayIterator {
     }
 
     public function __call($name, $args) {
-        $result = "";
+        $result = NULL;
+        switch ($name) {
+            case "select":
+                $result = new HTML_Selector_Result();
+                break;
+        }
 
         foreach ($this as $node) {
             if (is_object($node) && method_exists($node, $name)) {
                 $ret = call_user_func_array([$node, $name], $args);
-                if (is_string($ret)) {
-                    $result .= $ret;
+                if (is_object($ret)) {
+                    if ($result instanceof HTML_Selector_Result) {
+                        if ($ret instanceof HTML_Node) {
+                            $result->append($ret);
+                        } elseif ($ret instanceof HTML_Selector_Result) {
+                            foreach ($ret as $res) {
+                                $result->append($res);
+                            }
+                        }
+                    }
+                } elseif (is_string($ret)) {
+                    (string)$result .= $ret;
                 }
             }
         }
 
-        if (!empty($result)) {
+        if (!is_null($result)) {
             return $result;
         }
 
@@ -1347,6 +1362,16 @@ class HTML_Node {
 		}
 		$this->children = $tmp;
 	}
+    function unwrap() {
+        if ($this->parent === null) {
+			$this->clear();
+        } else {
+            foreach($this->children as $v) {
+                $v->changeParent($this->parent);
+            }
+        }
+        $this->delete();
+    }
 	function wrap($node, $wrap_index = -1, $node_index = null) {
 		if ($node_index === null) {
 			$node_index = $this->index();
