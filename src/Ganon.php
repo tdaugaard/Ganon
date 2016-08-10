@@ -7,8 +7,47 @@
  * @package Ganon
  * @link http://code.google.com/p/ganon/
  * @license http://dev.perl.org/licenses/artistic.html Artistic License
- * @version 1.1
  */
+
+//START ganon.php
+function str_get_dom($str, $return_root = true) {
+	$a = new HTML_Parser_HTML5($str);
+	return (($return_root) ? $a->root : $a);
+}
+function file_get_dom($file, $return_root = true, $use_include_path = false, $context = null) {
+	if (version_compare(PHP_VERSION, '5.0.0', '>='))
+		$f = file_get_contents($file, $use_include_path, $context);
+	else {
+		if ($context !== null)
+			trigger_error('Context parameter not supported in this PHP version');
+		$f = file_get_contents($file, $use_include_path);
+	}
+	return (($f === false) ? false : str_get_dom($f, $return_root));
+}
+function dom_format(&$root, $options = array()) {
+	$formatter = new HTML_Formatter($options);
+	return $formatter->format($root);
+}
+if (version_compare(PHP_VERSION, '5.0.0', '<')) {
+	function str_split($string) {
+		$res = array();
+		$size = strlen($string);
+		for ($i = 0; $i < $size; $i++) {
+			$res[] = $string[$i];
+		}
+		return $res;
+	}
+}
+if (version_compare(PHP_VERSION, '5.2.0', '<')) {
+	function array_fill_keys($keys, $value) {
+		$res = array();
+		foreach($keys as $k) {
+			$res[$k] = $value;
+		}
+		return $res;
+	}
+}
+//END ganon.php
 
 //START gan_tokenizer.php
 class Tokenizer_Base {
@@ -143,15 +182,12 @@ class Tokenizer_Base {
 			if (isset($this->char_map[$this->doc[$this->pos]])) {
 				if (is_string($this->char_map[$this->doc[$this->pos]])) {
 					return ($this->token = $this->{$this->char_map[$this->doc[$this->pos]]}());
-				} else {
-					return ($this->token = $this->char_map[$this->doc[$this->pos]]);
 				}
-			} else {
-				return ($this->token = self::TOK_UNKNOWN);
+                return ($this->token = $this->char_map[$this->doc[$this->pos]]);
 			}
-		} else {
-			return ($this->token = self::TOK_NULL);
+            return ($this->token = self::TOK_UNKNOWN);
 		}
+        return ($this->token = self::TOK_NULL);
 	}
 	function next_no_whitespace() {
 		$this->token_start = null;
@@ -160,15 +196,12 @@ class Tokenizer_Base {
 				if (isset($this->char_map[$this->doc[$this->pos]])) {
 					if (is_string($this->char_map[$this->doc[$this->pos]])) {
 						return ($this->token = $this->{$this->char_map[$this->doc[$this->pos]]}());
-					} else {
-						return ($this->token = $this->char_map[$this->doc[$this->pos]]);
 					}
-				} else {
-					return ($this->token = self::TOK_UNKNOWN);
+                    return ($this->token = $this->char_map[$this->doc[$this->pos]]);
 				}
-			} else {
-				$this->parse_linebreak();
+                return ($this->token = self::TOK_UNKNOWN);
 			}
+            $this->parse_linebreak();
 		}
 		return ($this->token = self::TOK_NULL);
 	}
@@ -182,15 +215,12 @@ class Tokenizer_Base {
 				if ($callback && isset($this->char_map[$this->doc[$this->pos]])) {
 					if (is_string($this->char_map[$this->doc[$this->pos]])) {
 						return ($this->token = $this->{$this->char_map[$this->doc[$this->pos]]}());
-					} else {
-						return ($this->token = $this->char_map[$this->doc[$this->pos]]);
 					}
-				} else {
-					return ($this->token = self::TOK_UNKNOWN);
+                    return ($this->token = $this->char_map[$this->doc[$this->pos]]);
 				}
-			} else {
-				$this->parse_linebreak();
+                return ($this->token = self::TOK_UNKNOWN);
 			}
+            $this->parse_linebreak();
 		}
 		return ($this->token = self::TOK_NULL);
 	}
@@ -214,16 +244,13 @@ class Tokenizer_Base {
 			if ($callback && isset($this->char_map[$this->doc[$this->pos]])) {
 				if (is_string($this->char_map[$this->doc[$this->pos]])) {
 					return ($this->token = $this->{$this->char_map[$this->doc[$this->pos]]}());
-				} else {
-					return ($this->token = $this->char_map[$this->doc[$this->pos]]);
 				}
-			} else {
-				return ($this->token = self::TOK_UNKNOWN);
+                return ($this->token = $this->char_map[$this->doc[$this->pos]]);
 			}
-		} else {
-			$this->pos = $this->size;
-			return ($this->token = self::TOK_NULL);
+            return ($this->token = self::TOK_UNKNOWN);
 		}
+        $this->pos = $this->size;
+        return ($this->token = self::TOK_NULL);
 	}
 	protected function expect($token, $do_next = true, $try_next = false, $next_on_match = 1) {
 		if ($do_next) {
@@ -322,20 +349,18 @@ class HTML_Parser_Base extends Tokenizer_Base {
 			$this->status['dtd'] = $this->getTokenString(2, -1);
 			$this->status['last_pos'] = $this->pos;
 			return true;
-		} else {
-			$this->addError('Invalid doctype');
-			return false;
 		}
+        $this->addError('Invalid doctype');
+        return false;
 	}
 	function parse_cdata() {
 		if ($this->next_pos(']]>', false) === self::TOK_UNKNOWN) {
 			$this->status['cdata'] = $this->getTokenString(9, -1);
 			$this->status['last_pos'] = $this->pos + 2;
 			return true;
-		} else {
-			$this->addError('Invalid cdata tag');
-			return false;
 		}
+        $this->addError('Invalid cdata tag');
+        return false;
 	}
 	function parse_php() {
 		$start = $this->pos;
@@ -376,10 +401,9 @@ class HTML_Parser_Base extends Tokenizer_Base {
 			$this->pos += 8;
 			$this->status['last_pos'] = $this->pos;
 			return true;
-		} else {
-			$this->addError('No end for script tag found');
-			return false;
 		}
+        $this->addError('No end for script tag found');
+        return false;
 	}
 	function parse_conditional() {
 		if ($this->status['closing_tag']) {
@@ -487,18 +511,19 @@ class HTML_Parser_Base extends Tokenizer_Base {
 				$this->status['comment'] = true;
 				if (($this->doc[$this->pos + 4] === '[') && (strcasecmp(substr($this->doc, $this->pos + 5, 2), 'if') === 0)) {
 					return $this->parse_conditional();
-				} else {
-					return $this->parse_comment();
 				}
+                return $this->parse_comment();
 			} else {
 				$this->status['comment'] = false;
 				if ($this->doc[$this->pos + 2] === '[') {
 					if (strcasecmp(substr($this->doc, $this->pos + 3, 2), 'if') === 0) {
 						return $this->parse_conditional();
-					} elseif (strcasecmp(substr($this->doc, $this->pos + 3, 5), 'endif') === 0) {
+					}
+                    if (strcasecmp(substr($this->doc, $this->pos + 3, 5), 'endif') === 0) {
 						$this->status['closing_tag'] = true;
 						return $this->parse_conditional();
-					} elseif (strcasecmp(substr($this->doc, $this->pos + 3, 5), 'cdata') === 0) {
+					}
+                    if (strcasecmp(substr($this->doc, $this->pos + 3, 5), 'cdata') === 0) {
 						return $this->parse_cdata();
 					}
 				}
@@ -779,6 +804,72 @@ class HTML_Parser_HTML5 extends HTML_Parser {
 }
 //END gan_parser_html.php
 
+
+class HTML_Selector_Result extends ArrayIterator {
+	function __get($attribute) {
+        $result = [];
+        foreach ($this as $node) {
+            $result[] = $this->getAttribute($attribute);
+        }
+
+        return $result;
+	}
+
+	function __set($attribute, $value) {
+        foreach ($this as $node) {
+            $node->setAttribute($attribute, $value);
+        }
+
+        return $this;
+	}
+
+	function __unset($attribute) {
+        foreach ($this as $node) {
+            $node->deleteAttribute($attribute);
+        }
+
+        return $this;
+	}
+
+    public function slice($offset, $length = NULL) {
+        return new HTML_Selector_Result(array_slice($this->getArrayCopy(), $offset, $length));
+    }
+
+    public function __call($name, $args) {
+        $result = NULL;
+        switch ($name) {
+            case "select":
+                $result = new HTML_Selector_Result();
+                break;
+        }
+
+        foreach ($this as $node) {
+            if (is_object($node) && method_exists($node, $name)) {
+                $ret = call_user_func_array([$node, $name], $args);
+                if (is_object($ret)) {
+                    if ($result instanceof HTML_Selector_Result) {
+                        if ($ret instanceof HTML_Node) {
+                            $result->append($ret);
+                        } elseif ($ret instanceof HTML_Selector_Result) {
+                            foreach ($ret as $res) {
+                                $result->append($res);
+                            }
+                        }
+                    }
+                } elseif (is_string($ret)) {
+                    (string)$result .= $ret;
+                }
+            }
+        }
+
+        if (!is_null($result)) {
+            return $result;
+        }
+
+        return $this;
+    }
+}
+
 //START gan_node_html.php
 class HTML_Node {
 	const NODE_ELEMENT = 0;
@@ -875,8 +966,10 @@ class HTML_Node {
 	 }
 	protected function toString_attributes() {
 		$s = '';
-		foreach($this->attributes as $a => $v) {
-			$s .= ' '.$a.(((!$this->attribute_shorttag) || ($this->attributes[$a] !== $a)) ? '="'.htmlspecialchars($this->attributes[$a], ENT_QUOTES, '', false).'"' : '');
+		if (!is_null($this->attributes)) {
+			foreach($this->attributes as $a => $v) {
+				$s .= ' '.$a.(((!$this->attribute_shorttag) || ($this->attributes[$a] !== $a)) ? '="'.htmlspecialchars($this->attributes[$a], ENT_QUOTES, '', false).'"' : '');
+			}
 		}
 		return $s;
 	}
@@ -899,14 +992,14 @@ class HTML_Node {
 			$s .= $this->toString_attributes();
 		}
 		if ($this->self_close) {
-			$s .= $this->self_close_str.'>';
-		} else {
-			$s .= '>';
-			if($recursive) {
-				$s .= $this->toString_content($attributes);
-			}
-			$s .= '</'.$this->tag.'>';
+			return $s . '>';
 		}
+
+        $s .= '>';
+        if($recursive) {
+            $s .= $this->toString_content($attributes);
+        }
+        $s .= '</'.$this->tag.'>';
 		return $s;
 	}
 	function getOuterText() {
@@ -944,7 +1037,7 @@ class HTML_Node {
 		return (($parser && $parser->errors) ? $parser->errors : true);
 	}
 	function getPlainText() {
-		return preg_replace('`\s+`', ' ', html_entity_decode($this->toString(true, true, true), ENT_QUOTES));
+		return $this->toString(true, true, true);
 	}
 	function getPlainTextUTF8() {
 		$txt = $this->getPlainText();
@@ -1007,16 +1100,19 @@ class HTML_Node {
 		}
 	}
 	function hasParent($tag = null, $recursive = false) {
-		if ($this->parent !== null) {
-			if ($tag === null) {
-				return true;
-			} elseif (is_string($tag)) {
-				return (($this->parent->tag === $tag) || ($recursive && $this->parent->hasParent($tag)));
-			} elseif (is_object($tag)) {
-				return (($this->parent === $tag) || ($recursive && $this->parent->hasParent($tag)));
-			}
-		}
-		return false;
+		if ($this->parent === null) {
+            return false;
+        }
+
+        if ($tag === null) {
+            return true;
+        }
+        if (is_string($tag)) {
+            return (($this->parent->tag === $tag) || ($recursive && $this->parent->hasParent($tag)));
+        }
+        if (is_object($tag)) {
+            return (($this->parent === $tag) || ($recursive && $this->parent->hasParent($tag)));
+        }
 	}
 	function isParent($tag, $recursive = false) {
 		return ($this->hasParent($tag, $recursive) === ($tag !== null));
@@ -1044,20 +1140,20 @@ class HTML_Node {
 	function index($count_all = true) {
 		if (!$this->parent) {
 			return -1;
-		} elseif ($count_all) {
-			return $this->parent->findChild($this);
-		} else{
-			$index = -1;
-			foreach(array_keys($this->parent->children) as $k) {
-				if (!$this->parent->children[$k]->isTextOrComment()) {
-					++$index;
-				}
-				if ($this->parent->children[$k] === $this) {
-					return $index;
-				}
-			}
-			return -1;
 		}
+        if ($count_all) {
+			return $this->parent->findChild($this);
+		}
+        $index = -1;
+        foreach(array_keys($this->parent->children) as $k) {
+            if (!$this->parent->children[$k]->isTextOrComment()) {
+                ++$index;
+            }
+            if ($this->parent->children[$k] === $this) {
+                return $index;
+            }
+        }
+        return -1;
 	}
 	function setIndex($index) {
 		if ($this->parent) {
@@ -1071,18 +1167,17 @@ class HTML_Node {
 	function typeIndex() {
 		if (!$this->parent) {
 			return -1;
-		} else {
-			$index = -1;
-			foreach(array_keys($this->parent->children) as $k) {
-				if (strcasecmp($this->tag, $this->parent->children[$k]->tag) === 0) {
-					++$index;
-				}
-				if ($this->parent->children[$k] === $this) {
-					return $index;
-				}
-			}
-			return -1;
 		}
+        $index = -1;
+        foreach(array_keys($this->parent->children) as $k) {
+            if (strcasecmp($this->tag, $this->parent->children[$k]->tag) === 0) {
+                ++$index;
+            }
+            if ($this->parent->children[$k] === $this) {
+                return $index;
+            }
+        }
+        return -1;
 	}
 	function indent() {
 		return (($this->parent) ? $this->parent->indent() + 1 : -1);
@@ -1091,18 +1186,16 @@ class HTML_Node {
 		$index = $this->index() + $offset;
 		if (($index >= 0) && ($index < $this->parent->childCount())) {
 			return $this->parent->getChild($index);
-		} else {
-			return null;
 		}
+        return null;
 	}
 	function getNextSibling($skip_text_comments = true) {
 		$offset = 1;
 		while (($n = $this->getSibling($offset)) !== null) {
 			if ($skip_text_comments && ($n->tag[0] === '~')) {
 				++$offset;
-			} else {
-				break;
 			}
+            break;
 		}
 		return $n;
 	}
@@ -1111,9 +1204,8 @@ class HTML_Node {
 		while (($n = $this->getSibling($offset)) !== null) {
 			if ($skip_text_comments && ($n->tag[0] === '~')) {
 				--$offset;
-			} else {
-				break;
 			}
+            break;
 		}
 		return $n;
 	}
@@ -1152,30 +1244,33 @@ class HTML_Node {
 	}
 	function getEncoding() {
 		$root = $this->getRoot();
-		if ($root !== null) {
-			if ($enc = $root->select('meta[charset]', 0, true, true)) {
-				return $enc->getAttribute("charset");
-			} elseif ($enc = $root->select('"?xml"[encoding]', 0, true, true)) {
-				return $enc->getAttribute("encoding");
-			} elseif ($enc = $root->select('meta[content*="charset="]', 0, true, true)) {
-				$enc = $enc->getAttribute("content");
-				return substr($enc, strpos($enc, "charset=")+8);
-			}
-		}
-		return false;
+		if ($root === null) {
+            return false;
+        }
+
+        if ($enc = $root->select('meta[charset]', 0, true, true)) {
+            return $enc->getAttribute("charset");
+        }
+        if ($enc = $root->select('"?xml"[encoding]', 0, true, true)) {
+            return $enc->getAttribute("encoding");
+        }
+        if ($enc = $root->select('meta[content*="charset="]', 0, true, true)) {
+            $enc = $enc->getAttribute("content");
+            return substr($enc, strpos($enc, "charset=")+8);
+        }
 	}	
 	function childCount($ignore_text_comments = false) {
 		if (!$ignore_text_comments) {
 			return count($this->children);
-		} else{
-			$count = 0;
-			foreach(array_keys($this->children) as $k) {
-				if (!$this->children[$k]->isTextOrComment()) {
-					++$count;
-				}
-			}
-			return $count;
 		}
+
+        $count = 0;
+        foreach(array_keys($this->children) as $k) {
+            if (!$this->children[$k]->isTextOrComment()) {
+                ++$count;
+            }
+        }
+        return $count;
 	}
 	function findChild($child) {
 		return array_search($child, $this->children, true);
@@ -1201,9 +1296,8 @@ class HTML_Node {
 				}
 			}
 			return (($child > $count) ? $last : null);
-		} else {
-			return $this->children[$child];
 		}
+        return $this->children[$child];
 	}
 	function &addChild($tag, &$offset = null) {
 		if (!is_object($tag)) {
@@ -1268,6 +1362,16 @@ class HTML_Node {
 		}
 		$this->children = $tmp;
 	}
+    function unwrap() {
+        if ($this->parent === null) {
+			$this->clear();
+        } else {
+            foreach($this->children as $v) {
+                $v->changeParent($this->parent);
+            }
+        }
+        $this->delete();
+    }
 	function wrap($node, $wrap_index = -1, $node_index = null) {
 		if ($node_index === null) {
 			$node_index = $this->index();
@@ -1305,7 +1409,9 @@ class HTML_Node {
 			}
 			$keys = array_keys($this->attributes);
 			return $this->findAttribute($keys[$attr], 'total', true);
-		} else if ($compare === 'total') {
+		}
+
+        if ($compare === 'total') {
 			$b = explode(':', $attr, 2);
 			if ($case_sensitive) {
 				$t =& $this->attributes;
@@ -1313,111 +1419,114 @@ class HTML_Node {
 				$t = array_change_key_case($this->attributes);
 				$attr = strtolower($attr);
 			}
-			if (isset($t[$attr])) {
-				$index = 0;
-				foreach($this->attributes as $a => $v) {
-					if (($v === $t[$attr]) && (strcasecmp($a, $attr) === 0)) {
-						$attr = $a;
-						$b = explode(':', $attr, 2);
-						break;
-					}
-					++$index;
-				}
-				if (empty($b[1])) {
-					return array(array('', $b[0], $attr, $index));
-				} else {
-					return array(array($b[0], $b[1], $attr, $index));
-				}
-			} else {
-				return false;
-			}
-		} else {
-			if ($this->attributes_ns === null) {
-				$index = 0;
-				foreach($this->attributes as $a => $v) {
-					$b = explode(':', $a, 2);
-					if (empty($b[1])) {
-						$this->attributes_ns[$b[0]][] = array('', $b[0], $a, $index);
-					} else {
-						$this->attributes_ns[$b[1]][] = array($b[0], $b[1], $a, $index);
-					}
-					++$index;
-				}
-			}
-			if ($case_sensitive) {
-				$t =& $this->attributes_ns;
-			} else {
-				$t = array_change_key_case($this->attributes_ns);
-				$attr = strtolower($attr);
-			}
-			if ($compare === 'namespace') {
-				$res = array();
-				foreach($t as $ar) {
-					foreach($ar as $a) {
-						if ($a[0] === $attr) {
-							$res[] = $a;
-						}
-					}
-				}
-				return $res;
-			} elseif ($compare === 'name') {
-				return ((isset($t[$attr])) ? $t[$attr] : false);
-			} else {
-				trigger_error('Unknown comparison mode');
-			}
+			if (!isset($t[$attr])) {
+                return false;
+            }
+
+            $index = 0;
+            foreach($this->attributes as $a => $v) {
+                if (($v === $t[$attr]) && (strcasecmp($a, $attr) === 0)) {
+                    $attr = $a;
+                    $b = explode(':', $attr, 2);
+                    break;
+                }
+                ++$index;
+            }
+            if (empty($b[1])) {
+                return array(array('', $b[0], $attr, $index));
+            }
+
+            return array(array($b[0], $b[1], $attr, $index));
 		}
+
+        if ($this->attributes_ns === null) {
+            $index = 0;
+            foreach($this->attributes as $a => $v) {
+                $b = explode(':', $a, 2);
+                if (empty($b[1])) {
+                    $this->attributes_ns[$b[0]][] = array('', $b[0], $a, $index);
+                } else {
+                    $this->attributes_ns[$b[1]][] = array($b[0], $b[1], $a, $index);
+                }
+                ++$index;
+            }
+        }
+
+        if ($case_sensitive) {
+            $t =& $this->attributes_ns;
+        } else {
+            $t = array_change_key_case($this->attributes_ns);
+            $attr = strtolower($attr);
+        }
+        if ($compare === 'namespace') {
+            $res = array();
+            foreach($t as $ar) {
+                foreach($ar as $a) {
+                    if ($a[0] === $attr) {
+                        $res[] = $a;
+                    }
+                }
+            }
+            return $res;
+        }
+        if ($compare === 'name') {
+            return ((isset($t[$attr])) ? $t[$attr] : false);
+        }
+
+        trigger_error('Unknown comparison mode');
 	}
 	function hasAttribute($attr, $compare = 'total', $case_sensitive = false) {
 		return ((bool) $this->findAttribute($attr, $compare, $case_sensitive));
 	}
 	function getAttributeNS($attr, $compare = 'name', $case_sensitive = false) {
 		$f = $this->findAttribute($attr, $compare, $case_sensitive);
-		if (is_array($f) && $f) {
-			if (count($f) === 1) {
-				return $this->attributes[$f[0][0]];
-			} else {
-				$res = array();
-				foreach($f as $a) {
-					$res[] = $a[0];
-				}
-				return $res;
-			}
-		} else {
-			return false;
-		}
+		if (!is_array($f) || !$f) {
+            return false;
+        }
+
+        if (count($f) === 1) {
+            return $this->attributes[$f[0][0]];
+        }
+
+        $res = array();
+        foreach($f as $a) {
+            $res[] = $a[0];
+        }
+
+        return $res;
 	}
 	function setAttributeNS($attr, $namespace, $compare = 'name', $case_sensitive = false) {
 		$f = $this->findAttribute($attr, $compare, $case_sensitive);
-		if (is_array($f) && $f) {
-			if ($namespace) {
-				$namespace .= ':';
-			}
-			foreach($f as $a) {
-				$val = $this->attributes[$a[2]];
-				unset($this->attributes[$a[2]]);
-				$this->attributes[$namespace.$a[1]] = $val;
-			}
-			$this->attributes_ns = null;
-			return true;
-		} else {
-			return false;
-		}
+		if (!is_array($f) || !$f) {
+            return false;
+        }
+
+        if ($namespace) {
+            $namespace .= ':';
+        }
+        foreach($f as $a) {
+            $val = $this->attributes[$a[2]];
+            unset($this->attributes[$a[2]]);
+            $this->attributes[$namespace.$a[1]] = $val;
+        }
+        $this->attributes_ns = null;
+        return true;
 	}
 	function getAttribute($attr, $compare = 'total', $case_sensitive = false) {
 		$f = $this->findAttribute($attr, $compare, $case_sensitive);
-		if (is_array($f) && $f){
-			if (count($f) === 1) {
-				return $this->attributes[$f[0][2]];
-			} else {
-				$res = array();
-				foreach($f as $a) {
-					$res[] = $this->attributes[$a[2]];
-				}
-				return $res;
-			}
-		} else {
-			return null;
-		}
+		if (!is_array($f) || !$f) {
+            return null;
+        }
+
+        if (count($f) === 1) {
+            return $this->attributes[$f[0][2]];
+        }
+
+        $res = array();
+        foreach($f as $a) {
+            $res[] = $this->attributes[$a[2]];
+        }
+        return $res;
 	}
 	function setAttribute($attr, $val, $compare = 'total', $case_sensitive = false) {
 		if ($val === null) {
@@ -1435,16 +1544,20 @@ class HTML_Node {
 	function addAttribute($attr, $val) {
 		$this->setAttribute($attr, $val, 'total', true);
 	}
-	function deleteAttribute($attr, $compare = 'total', $case_sensitive = false) {
-		$f = $this->findAttribute($attr, $compare, $case_sensitive);
-		if (is_array($f) && $f) {
-			foreach($f as $a) {
-				unset($this->attributes[$a[2]]);
-				if ($this->attributes_ns !== null) {
-					unset($this->attributes_ns[$a[1]]);
-				}
-			}
-		}
+	function deleteAttribute($attrs, $compare = 'total', $case_sensitive = false) {
+        $attrs = array_filter(explode(" ", $attrs));
+
+        foreach ($attrs as $attr) {
+            $f = $this->findAttribute($attr, $compare, $case_sensitive);
+            if (is_array($f) && $f) {
+                foreach($f as $a) {
+                    unset($this->attributes[$a[2]]);
+                    if ($this->attributes_ns !== null) {
+                        unset($this->attributes_ns[$a[1]]);
+                    }
+                }
+            }
+        }
 	}
 	function hasClass($className) {
 		return ($className && preg_match('`\b'.preg_quote($className).'\b`si', $class = $this->class));
@@ -1459,7 +1572,9 @@ class HTML_Node {
 				$class .= ' '.$c;
 			}
 		}
-		 $this->class = $class;
+        $this->class = $class;
+
+        return $this;
 	}
 	function removeClass($className) {
 		if (!is_array($className)) {
@@ -1467,13 +1582,15 @@ class HTML_Node {
 		}
 		$class = $this->class;
 		foreach ($className as $c) {
-			$class = reg_replace('`\b'.preg_quote($c).'\b`si', '', $class);
+			$class = preg_replace('`\b'.preg_quote($c).'\b`si', '', $class);
 		}
 		if ($class) {
 			$this->class = $class;
 		} else {
 			unset($this->class);
 		}
+
+        return $this;
 	}
 	function getChildrenByCallback($callback, $recursive = true, $check_self = false) {
 		$count = $this->childCount();
@@ -1691,18 +1808,18 @@ class HTML_Node {
 				}
 			}
 			return false;
-		} else {
-			if (($t && (!$this->match_tags($conditions['tags']))) === $match) {
-				return false;
-			}
-			if (($a && (!$this->match_attributes($conditions['attributes']))) === $match) {
-				return false;
-			}
-			if (($f && (!$this->match_filters($conditions['filters'], $custom_filters))) === $match) {
-				return false;
-			}
-			return true;
 		}
+
+        if (($t && (!$this->match_tags($conditions['tags']))) === $match) {
+            return false;
+        }
+        if (($a && (!$this->match_attributes($conditions['attributes']))) === $match) {
+            return false;
+        }
+        if (($f && (!$this->match_filters($conditions['filters'], $custom_filters))) === $match) {
+            return false;
+        }
+        return true;
 	}
 	function getChildrenByAttribute($attribute, $value, $mode = 'equals', $compare = 'total', $recursive = true) {
 		if ($this->childCount() < 1) {
@@ -1757,14 +1874,20 @@ class HTML_Node {
 		unset($s);
 		if (is_array($res) && ($index === true) && (count($res) === 1)) {
 			return $res[0];
-		} elseif (is_int($index) && is_array($res)) {
+		}
+
+        if (is_int($index) && is_array($res)) {
 			if ($index < 0) {
 				$index += count($res);
 			}
 			return ($index < count($res)) ? $res[$index] : null;
-		} else {
-			return $res;
 		}
+
+        if (is_array($res)) {
+            return new HTML_Selector_Result($res);
+        }
+
+        return $res;
 	}
 	protected function filter_root() {
 		return (strtolower($this->tag) === 'html');
@@ -1781,9 +1904,9 @@ class HTML_Node {
 	protected function filter_nlastchild($n) {
 		if ($this->parent === null) {
 			return false;
-		} else {
-			return ($this->parent->childCount(true) - 1 - $this->index(false) === (int) $n);
 		}
+
+        return ($this->parent->childCount(true) - 1 - $this->index(false) === (int) $n);
 	}
 	protected function filter_ntype($n) {
 		return ($this->typeIndex() === (int) $n);
@@ -1791,9 +1914,9 @@ class HTML_Node {
 	protected function filter_nlastype($n) {
 		if ($this->parent === null) {
 			return false;
-		} else {
-			return (count($this->parent->getChildrenByTag($this->tag, 'total', false)) - 1 - $this->typeIndex() === (int) $n);
 		}
+
+        return (count($this->parent->getChildrenByTag($this->tag, 'total', false)) - 1 - $this->typeIndex() === (int) $n);
 	}
 	protected function filter_odd() {
 		return (($this->index(false) & 1) === 1);
@@ -1810,9 +1933,9 @@ class HTML_Node {
 	protected function filter_last() {
 		if ($this->parent === null) {
 			return false;
-		} else {
-			return ($this->parent->childCount(true) - 1 === $this->index(false));
 		}
+
+        return ($this->parent->childCount(true) - 1 === $this->index(false));
 	}
 	protected function filter_firsttype() {
 		return ($this->typeIndex() === 0);
@@ -1820,23 +1943,23 @@ class HTML_Node {
 	protected function filter_lasttype() {
 		if ($this->parent === null) {
 			return false;
-		} else {
-			return (count($this->parent->getChildrenByTag($this->tag, 'total', false)) - 1 === $this->typeIndex());
 		}
+
+        return (count($this->parent->getChildrenByTag($this->tag, 'total', false)) - 1 === $this->typeIndex());
 	}
 	protected function filter_onlychild() {
 		if ($this->parent === null) {
 			return false;
-		} else {
-			return ($this->parent->childCount(true) === 1);
 		}
+
+        return ($this->parent->childCount(true) === 1);
 	}
 	protected function filter_onlytype() {
 		if ($this->parent === null) {
 			return false;
-		} else {
-			return (count($this->parent->getChildrenByTag($this->tag, 'total', false)) === 1);
 		}
+
+        return (count($this->parent->getChildrenByTag($this->tag, 'total', false)) === 1);
 	}
 	protected function filter_empty() {
 		return ($this->childCount() === 0);
@@ -2051,41 +2174,36 @@ class Tokenizer_CSSQuery extends Tokenizer_Base {
 		if ((($this->pos + 1) < $this->size) && ($this->doc[$this->pos + 1] === '=')) {
 			++$this->pos;
 			return ($this->token = self::TOK_COMPARE_BIGGER_THAN);
-		} else {
-			return ($this->token = self::TOK_CHILD);
 		}
+        return ($this->token = self::TOK_CHILD);
 	}
 	protected function parse_sibling() {
 		if ((($this->pos + 1) < $this->size) && ($this->doc[$this->pos + 1] === '=')) {
 			++$this->pos;
 			return ($this->token = self::TOK_COMPARE_CONTAINS_WORD);
-		} else {
-			return ($this->token = self::TOK_SIBLING);
 		}
+        return ($this->token = self::TOK_SIBLING);
 	}
 	protected function parse_pipe() {
 		if ((($this->pos + 1) < $this->size) && ($this->doc[$this->pos + 1] === '=')) {
 			++$this->pos;
 			return ($this->token = self::TOK_COMPARE_PREFIX);
-		} else {
-			return ($this->token = self::TOK_PIPE);
 		}
+        return ($this->token = self::TOK_PIPE);
 	}
 	protected function parse_star() {
 		if ((($this->pos + 1) < $this->size) && ($this->doc[$this->pos + 1] === '=')) {
 			++$this->pos;
 			return ($this->token = self::TOK_COMPARE_CONTAINS);
-		} else {
-			return ($this->token = self::TOK_ALL);
 		}
+        return ($this->token = self::TOK_ALL);
 	}
 	protected function parse_not() {
 		if ((($this->pos + 1) < $this->size) && ($this->doc[$this->pos + 1] === '=')) {
 			++$this->pos;
 			return ($this->token = self::TOK_COMPARE_NOT_EQUAL);
-		} else {
-			return ($this->token = self::TOK_NOT);
 		}
+        return ($this->token = self::TOK_NOT);
 	}
 	protected function parse_compare() {
 		if ((($this->pos + 1) < $this->size) && ($this->doc[$this->pos + 1] === '=')) {
@@ -2161,9 +2279,11 @@ class HTML_Selector {
 		$tok = $p->token;
 		if ($tok === Tokenizer_CSSQuery::TOK_IDENTIFIER) {
 			return $p->getTokenString();
-		} elseif($tok === Tokenizer_CSSQuery::TOK_STRING) {
+		}
+        if($tok === Tokenizer_CSSQuery::TOK_STRING) {
 			return str_replace(array('\\\'', '\\"', '\\\\'), array('\'', '"', '\\'), $p->getTokenString(1, -1));
-		} elseif ($do_error) {
+		}
+        if ($do_error) {
 			$this->error('Expected identifier at %pos%!');
 		}
 		return false;
@@ -2253,10 +2373,9 @@ class HTML_Selector {
 								$compare = 'namespace';
 							} elseif (($tag_name = $this->parse_getIdentifier()) !== false) {
 								$tag = $tag.':'.$tag_name;
-							} else {
-								return false;
 							}
-							$tok = $p->next_no_whitespace();
+
+                            return false;
 						}
 					}
 					if ($tok === Tokenizer_CSSQuery::TOK_WHITESPACE) {
@@ -2376,71 +2495,13 @@ class HTML_Selector {
 							$tok = $p->next();
 							if (($attribute_name = $this->parse_getIdentifier()) !== false) {
 								$attribute = $attribute.':'.$attribute_name;
-							} else {
-								return false;
 							}
-							$tok = $p->next();
+
+                            return false;
 						}
-					} else {
-						return false;
 					}
-					if ($tok === Tokenizer_CSSQuery::TOK_WHITESPACE) {
-						$tok = $p->next_no_whitespace();
-					}
-					$operator_value = '';
-					$val = '';
-					switch($tok) {
-						case Tokenizer_CSSQuery::TOK_COMPARE_PREFIX:
-						case Tokenizer_CSSQuery::TOK_COMPARE_CONTAINS:
-						case Tokenizer_CSSQuery::TOK_COMPARE_CONTAINS_WORD:
-						case Tokenizer_CSSQuery::TOK_COMPARE_ENDS:
-						case Tokenizer_CSSQuery::TOK_COMPARE_EQUALS:
-						case Tokenizer_CSSQuery::TOK_COMPARE_NOT_EQUAL:
-						case Tokenizer_CSSQuery::TOK_COMPARE_REGEX:
-						case Tokenizer_CSSQuery::TOK_COMPARE_STARTS:
-						case Tokenizer_CSSQuery::TOK_COMPARE_BIGGER_THAN:
-						case Tokenizer_CSSQuery::TOK_COMPARE_SMALLER_THAN:
-							$operator_value = $p->getTokenString(($tok === Tokenizer_CSSQuery::TOK_COMPARE_EQUALS) ? 0 : -1);
-							$p->next_no_whitespace();
-							if (($val = $this->parse_getIdentifier()) === false) {
-								return false;
-							}
-							$tok = $p->next_no_whitespace();
-							break;
-					}
-					if ($operator_value && $val) {
-						$conditions['attributes'][] = array(
-							'attribute' => $attribute,
-							'operator_value' => $operator_value,
-							'value' => $val,
-							'match' => $match,
-							'operator_result' => $last_mode,
-							'compare' => $compare
-						);
-					} else {
-						$conditions['attributes'][] = array(
-							'attribute' => $attribute,
-							'value' => $match,
-							'operator_result' => $last_mode,
-							'compare' => $compare
-						);
-					}
-					switch($tok) {
-						case Tokenizer_CSSQuery::TOK_COMMA:
-							$tok = $p->next_no_whitespace();
-							$last_mode = 'or';
-							continue 2;
-						case Tokenizer_CSSQuery::TOK_PLUS:
-							$tok = $p->next_no_whitespace();
-							$last_mode = 'and';
-							continue 2;
-						case Tokenizer_CSSQuery::TOK_BRACKET_CLOSE:
-							$tok = $p->next();
-							break 2;
-						default:
-							$this->error('Expected closing bracket or comma at pos %pos%!');
-							return false;
-					}
+
+                    return false;
 				}
 			}
 			if (count($conditions['attributes']) < 1) {
@@ -2488,9 +2549,9 @@ class HTML_Selector {
 			if ($tok === Tokenizer_CSSQuery::TOK_COMMA) {
 				$tok = $p->next_no_whitespace();
 				continue;
-			} else {
-				break;
 			}
+
+            break;
 		}
 		return $conditions_all;
 	}
@@ -2597,9 +2658,9 @@ class HTML_Selector {
 function indent_text($text, $indent, $indent_string = '  ') {
 	if ($indent && $indent_string) {
 		return str_replace("\n", "\n".str_repeat($indent_string, $indent), $text);
-	} else {
-		return $text;
 	}
+
+    return $text;
 }
 class HTML_Formatter {
 	var $block_elements = array(
@@ -2834,45 +2895,3 @@ class HTML_Formatter {
 	}
 }
 //END gan_formatter.php
-
-//START ganon.php
-function str_get_dom($str, $return_root = true) {
-	$a = new HTML_Parser_HTML5($str);
-	return (($return_root) ? $a->root : $a);
-}
-function file_get_dom($file, $return_root = true, $use_include_path = false, $context = null) {
-	if (version_compare(PHP_VERSION, '5.0.0', '>='))
-		$f = file_get_contents($file, $use_include_path, $context);
-	else {
-		if ($context !== null)
-			trigger_error('Context parameter not supported in this PHP version');
-		$f = file_get_contents($file, $use_include_path);
-	}
-	return (($f === false) ? false : str_get_dom($f, $return_root));
-}
-function dom_format(&$root, $options = array()) {
-	$formatter = new HTML_Formatter($options);
-	return $formatter->format($root);
-}
-if (version_compare(PHP_VERSION, '5.0.0', '<')) {
-	function str_split($string) {
-		$res = array();
-		$size = strlen($string);
-		for ($i = 0; $i < $size; $i++) {
-			$res[] = $string[$i];
-		}
-		return $res;
-	}
-}
-if (version_compare(PHP_VERSION, '5.2.0', '<')) {
-	function array_fill_keys($keys, $value) {
-		$res = array();
-		foreach($keys as $k) {
-			$res[$k] = $value;
-		}
-		return $res;
-	}
-}
-//END ganon.php
-
-?>
